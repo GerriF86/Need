@@ -1,0 +1,30 @@
+# ───────── Python basics ─────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# ───────── IDE / OS crud ─────────
+.vscode/
+.idea/
+.DS_Store
+
+# ───────── Streamlit ─────────
+.streamlit/secrets.toml      # NEVER commit your secrets!
+.streamlit/config.toml       # can be committed if you like
+
+# ───────── Data & models ─────────
+vector_bases/
+vector_databases/
+*.faiss
+*.pkl
+uploads/
+logs/
+
+# ───────── Env files ─────────
+.env
