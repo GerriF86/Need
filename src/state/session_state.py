@@ -12,3 +12,7 @@ def ensure_keys() -> None:
     for k in _ALL_KEYS:
         st.session_state.setdefault(k, "")
     st.session_state.setdefault("wizard_step", 1)
+
+def initialize_session_state() -> None:          # ← new public alias
+    """Backwards-compat wrapper for older imports."""
+    ensure_keys()
