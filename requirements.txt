@@ -1,5 +1,5 @@
 # ───────────────────────── core ─────────────────────────
-openai>=1.13.3                 # Chat Completions + Agents SDK
+openai>=1.76                    # Chat Completions + Agents SDK, includes beta.responses + beta.agents
 tiktoken>=0.6.0               # token-count helper used by openai
 pydantic>=2.6                 # typed data models + validation
 
