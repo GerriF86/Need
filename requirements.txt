@@ -1,0 +1,22 @@
+# ───────────────────────── core ─────────────────────────
+openai>=1.13.3                 # Chat Completions + Agents SDK
+tiktoken>=0.6.0               # token-count helper used by openai
+pydantic>=2.6                 # typed data models + validation
+
+# ──────────────────────── streamlit ─────────────────────
+streamlit>=1.32
+streamlit-aggrid>=0.3.5        # (optional) spreadsheet-like tables
+
+# ───────────────────────── LLM tools ────────────────────
+faiss-cpu>=1.8.0               # vector store
+sentence-transformers>=2.4
+python-docx>=1.1.0             # DOCX parsing
+PyMuPDF>=1.23.26               # PDF parsing
+beautifulsoup4>=4.12
+requests>=2.31
+networkx>=3.2.1                # dependency / trigger graph
+python-dotenv>=1.0             # load .env secrets
+fpdf2>=2.7                     # PDF export utility
+
+# ────────────────────────── misc ────────────────────────
+numpy>=1.26
