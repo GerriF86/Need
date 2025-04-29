@@ -1,62 +1,83 @@
 # src/pages/wizard.py
+
 from __future__ import annotations
+
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import streamlit as st
-from src.config.keys import STEP_KEYS  # field definitions per step
+
+# --- Import from your repo's modules ---
+# Session state helpers
+from state.session_state import initialize_session_state
+
+# Trigger Engine
+from logic.trigger_engine import TriggerEngine, build_default_graph
+
+# Tools
 from src.tools.file_tools import extract_text_from_file
 from src.tools.scraping_tools import scrape_company_site
 from src.utils.text_cleanup import clean_text
 
-# Utility: parse file content (PDF/DOCX/TXT) into text
-def parse_file(file_bytes: bytes, file_name: str) -> str:
-    import os
-    ext = os.path.splitext(file_name)[1].lower()
-    if ext == ".pdf":
-        import fitz  # PyMuPDF
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
-        text = "\n".join(page.get_text() for page in doc)
-    elif ext == ".docx":
-        import docx
-        doc = docx.Document(file_bytes)
-        text = "\n".join(p.text for p in doc.paragraphs)
-    elif ext == ".txt":
-        text = file_bytes.decode("utf-8", errors="ignore")
-    else:
-        text = ""
-    # Basic cleanup: collapse multiple spaces/newlines
-    if text:
-        text = " ".join(text.split())
-    return text
+# Config
+from src.config.keys import STEP_KEYS  # field definitions for each wizard step
 
-# Utility: fetch text content from a URL (HTML or raw text)
+# ------------------------------------------------------------------
+# 1. Initialize session state & trigger engine (only once per session)
+# ------------------------------------------------------------------
+if "initialized" not in st.session_state:
+    initialize_session_state()  # your custom function if needed
+    # Only build the trigger engine if not already in state
+    if "trigger_engine" not in st.session_state:
+        st.session_state["trigger_engine"] = TriggerEngine(build_default_graph())
+    st.session_state["initialized"] = True
+
+
+# ------------------------------------------------------------------
+# 2. Utility: fetch text content from a URL, using your scraping tools
+# ------------------------------------------------------------------
 def fetch_url_text(url: str) -> str:
+    """
+    Fetch text from a given URL. 
+    - For HTML pages: calls scrape_company_site(url).
+    - For PDF or docx: downloads content & calls extract_text_from_file.
+    - Fallback: returns raw text.
+    """
     try:
         resp = requests.get(url, timeout=10)
         resp.raise_for_status()
+        content_type = resp.headers.get("Content-Type", "").lower()
     except Exception as e:
         st.warning(f"Failed to fetch URL: {e}")
         return ""
-    content_type = resp.headers.get("Content-Type", "")
+
     text = ""
     if "text/html" in content_type:
-        soup = BeautifulSoup(resp.text, "html.parser")
-        # Get visible text from HTML
-        text = soup.get_text(separator=" ", strip=True)
+        # Use your scraping_tools function
+        text = scrape_company_site(url)
     elif "pdf" in content_type or "application/pdf" in content_type:
-        text = parse_file(resp.content, "file.pdf")
+        text = extract_text_from_file(resp.content, "file.pdf")
     elif "msword" in content_type or "officedocument" in content_type:
-        text = parse_file(resp.content, "file.docx")
+        text = extract_text_from_file(resp.content, "file.docx")
     else:
-        # Fallback for plain text or other types
+        # fallback for plain text or unknown file
         text = resp.text
+
+    # Optionally clean text
+    text = clean_text(text)
     return text
 
-# Utility: extract known fields from raw text into session_state
+
+# ------------------------------------------------------------------
+# 3. Utility: match extracted text to known keys in session_state
+# ------------------------------------------------------------------
 def match_and_store_keys(raw_text: str) -> None:
+    """
+    Scan raw_text for known field labels (like "Job Title:", etc.),
+    and if found, store their values in st.session_state.
+    """
     if not raw_text:
         return
-    # Define mapping of session keys to identifiable labels in text
+
     label_map = {
         "job_title": "Job Title:",
         "company_name": "Company Name:",
@@ -139,35 +160,44 @@ def match_and_store_keys(raw_text: str) -> None:
         "video_introduction_option": "Video Introduction Option:",
         "comments_internal": "Comments (Internal):",
     }
-    # Loop through each known label and extract the corresponding value
+
+    # simple text search
     text = raw_text
     for key, label in label_map.items():
         if label in text:
-            start = text.find(label) + len(label)
-            end_line = text.find("\n", start)
+            start_idx = text.find(label) + len(label)
+            end_line = text.find("\n", start_idx)
             if end_line == -1:
                 end_line = len(text)
-            value = text[start:end_line].strip()
-            # Remove any trailing punctuation or colon
-            value = value.lstrip(": ").rstrip()
+            value = text[start_idx:end_line].strip().lstrip(": ").rstrip()
             if value:
                 st.session_state[key] = value
 
-# Step 1: Start Discovery (Input source analysis)
+
+# ------------------------------------------------------------------
+# 4. Step 1: Start Discovery Page (Upload or fetch job info)
+# ------------------------------------------------------------------
 def start_discovery_page():
+    """
+    Step 1 UI: 
+      - Language toggle
+      - Enter job title
+      - Provide a link to a job ad or upload a PDF/DOCX
+      - On analysis, store results in session_state
+    """
     import streamlit as st
 
     # Language toggle (session-level)
     lang = st.radio("🌐 Sprache / Language", ("Deutsch", "English"), horizontal=True)
 
-    # RoleCraft Main Titles
+    # Titles & intro text
     if lang == "Deutsch":
         st.title("🚀 Erstelle die perfekte Stellenbeschreibung")
         st.subheader("Von der ersten Idee bis zur fertigen Ausschreibung.")
         intro_text = (
             "Willkommen bei **RoleCraft**.\n\n"
             "Starte mit einem Jobtitel oder lade eine Anzeige hoch.\n"
-            "Unser KI-gestützter Wizard analysiert, ergänzt fehlende Infos und begleitet dich sicher zum perfekten Profil."
+            "Unser KI-gestützter Wizard analysiert, ergänzt fehlende Infos und führt dich sicher zum perfekten Profil."
         )
         button_job = "➕ Jobtitel eingeben"
         button_upload = "📂 PDF / DOCX hochladen"
@@ -182,15 +212,17 @@ def start_discovery_page():
         button_job = "➕ Enter Job Title"
         button_upload = "📂 Upload PDF / DOCX"
 
-    # Main Intro Text
     st.markdown(intro_text)
 
     # Vacalyser Upload Section
     st.header("Vacalyser – Start Discovery")
-    st.write("Enter a job title and either a link to an existing job ad or upload a job description file. "
-             "The wizard will analyze the content and auto-fill relevant fields where possible.")
+    st.write(
+        "Enter a job title and either a link to an existing job ad or upload a job description file. "
+        "The wizard will analyze the content and auto-fill relevant fields where possible."
+    )
 
-    col1, col2 = st.columns([1, 1])
+    col1, col2 = st.columns(2)
+
     with col1:
         job_title = st.text_input(button_job, value=st.session_state.get("job_title", ""), placeholder="e.g. Senior Data Scientist")
         if job_title:
@@ -204,7 +236,11 @@ def start_discovery_page():
         uploaded_file = st.file_uploader(button_upload, type=["pdf", "docx", "txt"])
         if uploaded_file is not None:
             file_bytes = uploaded_file.read()
-            raw_text = parse_file(file_bytes, uploaded_file.name)
+            # Use your shared function from file_tools
+            raw_text = extract_text_from_file(file_bytes, uploaded_file.name)
+            # Optionally clean text
+            raw_text = clean_text(raw_text)
+
             if raw_text:
                 st.session_state["uploaded_file"] = raw_text
                 st.success("✅ File uploaded and text extracted.")
@@ -212,6 +248,7 @@ def start_discovery_page():
                 st.error("❌ Failed to extract text from the uploaded file.")
 
     analyze_clicked = st.button("🔎 Analyze Sources")
+
     if analyze_clicked:
         raw_text = ""
         if st.session_state.get("uploaded_file"):
@@ -222,16 +259,23 @@ def start_discovery_page():
         if not raw_text:
             st.warning("⚠️ Please provide a valid URL or upload a file before analysis.")
         else:
+            # store raw text & attempt to auto-extract fields
             st.session_state["parsed_data_raw"] = raw_text
             try:
                 match_and_store_keys(raw_text)
                 st.success("🎯 Analysis complete! Key details auto-filled.")
+
+                # Log any event into trace if you want
                 if "trace_events" not in st.session_state:
                     st.session_state["trace_events"] = []
                 st.session_state.trace_events.append("Auto-extracted fields from provided job description.")
             except Exception as e:
                 st.error(f"❌ Analysis failed: {e}")
-# Helper functions to render static forms for steps 2-7
+
+
+# ------------------------------------------------------------------
+# 5. Helper steps (2..7) unchanged from your code, but calls the trigger_engine
+# ------------------------------------------------------------------
 def render_step2_static():
     st.title("Step 2: Basic Job & Company Info")
     company_name = st.text_input("Company Name", value=st.session_state.get("company_name", ""), placeholder="e.g. Tech Corp Ltd.")
@@ -240,9 +284,9 @@ def render_step2_static():
     company_website = st.text_input("Company Website", value=st.session_state.get("company_website", ""), placeholder="e.g. https://company.com")
     date_of_start = st.text_input("Preferred Start Date", value=st.session_state.get("date_of_employment_start", ""), placeholder="e.g. ASAP or 2025-01-15")
     job_type = st.selectbox("Job Type", ["Full-Time", "Part-Time", "Internship", "Freelance", "Volunteer", "Other"], 
-                             index=0 if not st.session_state.get("job_type") else 0)  # default to first; state will update on submit
-    contract_type = st.selectbox("Contract Type", ["Permanent", "Fixed-Term", "Contract", "Other"], index=0 if not st.session_state.get("contract_type") else 0)
-    job_level = st.selectbox("Job Level", ["Entry-level", "Mid-level", "Senior", "Director", "C-level", "Other"], index=0 if not st.session_state.get("job_level") else 0)
+                             index=0)
+    contract_type = st.selectbox("Contract Type", ["Permanent", "Fixed-Term", "Contract", "Other"], index=0)
+    job_level = st.selectbox("Job Level", ["Entry-level", "Mid-level", "Senior", "Director", "C-level", "Other"], index=0)
     city = st.text_input("City (Job Location)", value=st.session_state.get("city", ""), placeholder="e.g. London")
     team_structure = st.text_area("Team Structure", value=st.session_state.get("team_structure", ""), placeholder="Describe the team setup, reporting hierarchy, etc.")
     return {
@@ -263,7 +307,7 @@ def render_step3_static():
     role_description = st.text_area("Role Description", value=st.session_state.get("role_description", ""), placeholder="High-level summary of the role...")
     reports_to = st.text_input("Reports To", value=st.session_state.get("reports_to", ""), placeholder="Position this role reports to")
     supervises = st.text_area("Supervises", value=st.session_state.get("supervises", ""), placeholder="List positions or teams this role supervises")
-    role_type = st.selectbox("Role Type", ["Individual Contributor", "Team Lead", "Manager", "Director", "Executive", "Other"], index=0 if not st.session_state.get("role_type") else 0)
+    role_type = st.selectbox("Role Type", ["Individual Contributor", "Team Lead", "Manager", "Director", "Executive", "Other"], index=0)
     role_priority_projects = st.text_area("Priority Projects", value=st.session_state.get("role_priority_projects", ""), placeholder="Key projects or initiatives for this role")
     travel_requirements = st.text_input("Travel Requirements", value=st.session_state.get("travel_requirements", ""), placeholder="e.g. Up to 20% travel required")
     work_schedule = st.text_input("Work Schedule", value=st.session_state.get("work_schedule", ""), placeholder="e.g. Mon-Fri 9-5, rotating shifts")
@@ -325,7 +369,7 @@ def render_step5_static():
     communication_skills = st.text_input("Communication Skills", value=st.session_state.get("communication_skills", ""), placeholder="Written and verbal communication skills")
     project_management_skills = st.text_input("Project Management Skills", value=st.session_state.get("project_management_skills", ""), placeholder="Ability to plan, execute, and manage projects")
     soft_requirement_details = st.text_area("Additional Soft Requirements", value=st.session_state.get("soft_requirement_details", ""), placeholder="Other personality or work style requirements")
-    visa_sponsorship = st.selectbox("Visa Sponsorship", ["No", "Yes", "Case-by-Case"], index=0 if not st.session_state.get("visa_sponsorship") else 0)
+    visa_sponsorship = st.selectbox("Visa Sponsorship", ["No", "Yes", "Case-by-Case"], index=0)
     return {
         "hard_skills": hard_skills,
         "soft_skills": soft_skills,
@@ -348,15 +392,15 @@ def render_step5_static():
 def render_step6_static():
     st.title("Step 6: Compensation & Benefits")
     salary_range = st.text_input("Salary Range", value=st.session_state.get("salary_range", ""), placeholder="e.g. 50,000 - 60,000 EUR")
-    currency = st.selectbox("Currency", ["EUR", "USD", "GBP", "Other"], index=0 if not st.session_state.get("currency") else 0)
-    pay_frequency = st.selectbox("Pay Frequency", ["Annual", "Monthly", "Bi-weekly", "Weekly", "Other"], index=0 if not st.session_state.get("pay_frequency") else 0)
+    currency = st.selectbox("Currency", ["EUR", "USD", "GBP", "Other"], index=0)
+    pay_frequency = st.selectbox("Pay Frequency", ["Annual", "Monthly", "Bi-weekly", "Weekly", "Other"], index=0)
     commission_structure = st.text_input("Commission Structure", value=st.session_state.get("commission_structure", ""), placeholder="Details of any commission")
     bonus_scheme = st.text_input("Bonus Scheme", value=st.session_state.get("bonus_scheme", ""), placeholder="Details of bonus or incentive scheme")
     vacation_days = st.text_input("Vacation Days", value=st.session_state.get("vacation_days", ""), placeholder="e.g. 25 days")
-    flexible_hours = st.selectbox("Flexible Hours", ["No", "Yes", "Partial/Flex"], index=0 if not st.session_state.get("flexible_hours") else 0)
-    remote_policy = st.selectbox("Remote Work Policy", ["On-site", "Hybrid", "Full Remote", "Other"], index=0 if not st.session_state.get("remote_work_policy") else 0)
-    relocation_assistance = st.selectbox("Relocation Assistance", ["No", "Yes", "Case-by-Case"], index=0 if not st.session_state.get("relocation_assistance") else 0)
-    childcare_support = st.selectbox("Childcare Support", ["No", "Yes", "Case-by-Case"], index=0 if not st.session_state.get("childcare_support") else 0)
+    flexible_hours = st.selectbox("Flexible Hours", ["No", "Yes", "Partial/Flex"], index=0)
+    remote_policy = st.selectbox("Remote Work Policy", ["On-site", "Hybrid", "Full Remote", "Other"], index=0)
+    relocation_assistance = st.selectbox("Relocation Assistance", ["No", "Yes", "Case-by-Case"], index=0)
+    childcare_support = st.selectbox("Childcare Support", ["No", "Yes", "Case-by-Case"], index=0)
     return {
         "salary_range": salary_range,
         "currency": currency,
@@ -393,25 +437,36 @@ def render_step7_static():
         "application_instructions": application_instructions
     }
 
-# Step 8: Additional Info & Final Summary (no dynamic questions, just summary)
+
+# ------------------------------------------------------------------
+# 6. Step 8: Additional info & final summary
+# ------------------------------------------------------------------
 def render_step8():
     st.title("Step 8: Additional Information & Final Review")
     st.subheader("Additional Metadata")
-    parsed_data = st.text_area("Parsed Data (Raw)", value=st.session_state.get("parsed_data_raw", ""), placeholder="(Auto-generated raw text from analysis)", help="This is the raw text extracted from the provided source, if any.")
+
+    parsed_data = st.text_area(
+        "Parsed Data (Raw)",
+        value=st.session_state.get("parsed_data_raw", ""),
+        placeholder="(Auto-generated raw text from analysis)",
+        help="This is the raw text extracted from the provided source, if any."
+    )
+
     language_of_ad = st.text_input("Language of Ad", value=st.session_state.get("language_of_ad", ""), placeholder="e.g. English, German")
-    translation_required = st.selectbox("Translation Required?", ["No", "Yes"], index=0 if not st.session_state.get("translation_required") else 0)
+    translation_required = st.selectbox("Translation Required?", ["No", "Yes"], index=0)
     branding_elements = st.text_area("Employer Branding Elements", value=st.session_state.get("employer_branding_elements", ""), placeholder="Company culture or branding highlights to include")
     publication_channels = st.text_area("Desired Publication Channels", value=st.session_state.get("desired_publication_channels", ""), placeholder="Where this ad will be posted (if specific)")
     internal_job_id = st.text_input("Internal Job ID", value=st.session_state.get("internal_job_id", ""), placeholder="Internal reference ID for this position")
-    ad_seniority_tone = st.selectbox("Ad Seniority Tone", ["Casual", "Formal", "Neutral", "Enthusiastic"], index=0 if not st.session_state.get("ad_seniority_tone") else 0)
-    ad_length_pref = st.selectbox("Ad Length Preference", ["Short & Concise", "Detailed", "Flexible"], index=0 if not st.session_state.get("ad_length_preference") else 0)
+    ad_seniority_tone = st.selectbox("Ad Seniority Tone", ["Casual", "Formal", "Neutral", "Enthusiastic"], index=0)
+    ad_length_pref = st.selectbox("Ad Length Preference", ["Short & Concise", "Detailed", "Flexible"], index=0)
     deadline_urgency = st.text_input("Application Deadline/Urgency", value=st.session_state.get("deadline_urgency", ""), placeholder="e.g. Apply by 30 June; Urgent fill")
     company_awards = st.text_area("Company Awards", value=st.session_state.get("company_awards", ""), placeholder="Notable awards or recognitions of the company")
     diversity_statement = st.text_area("Diversity & Inclusion Statement", value=st.session_state.get("diversity_inclusion_statement", ""), placeholder="Company's D&I commitment statement")
     legal_disclaimers = st.text_area("Legal Disclaimers", value=st.session_state.get("legal_disclaimers", ""), placeholder="Any legal or compliance text for the ad")
     social_links = st.text_area("Social Media Links", value=st.session_state.get("social_media_links", ""), placeholder="Links to company social media profiles (if included in ad)")
-    video_option = st.selectbox("Video Introduction Option", ["No", "Yes"], index=0 if not st.session_state.get("video_introduction_option") else 0)
+    video_option = st.selectbox("Video Introduction Option", ["No", "Yes"], index=0)
     comments_internal = st.text_area("Comments (Internal)", value=st.session_state.get("comments_internal", ""), placeholder="Any internal comments or notes")
+
     # Save all step8 fields into session_state
     st.session_state["parsed_data_raw"] = parsed_data
     st.session_state["language_of_ad"] = language_of_ad
@@ -429,39 +484,51 @@ def render_step8():
     st.session_state["video_introduction_option"] = video_option
     st.session_state["comments_internal"] = comments_internal
 
-    # Display Final Summary of all fields
+    # Display final summary of all fields
     st.subheader("Final Summary")
-    # We iterate through all steps and show each field and its value
-    for step, keys in STEP_KEYS.items():
+    for step_index, keys in STEP_KEYS.items():
         for key in keys:
             label = key.replace("_", " ").title()
             value = st.session_state.get(key, "")
             st.markdown(f"**{label}:** {value}")
-        if step == 2 or step == 3 or step == 4 or step == 5 or step == 6 or step == 7:
+        # optional: visual separation
+        if step_index in (2,3,4,5,6,7):
             st.markdown("---")
+
     st.info("Review the above summary. You can go back to edit any step, or proceed to finalize the job ad.")
 
-# Main function to orchestrate the wizard steps
+
+# ------------------------------------------------------------------
+# 7. Main function to orchestrate the multi-step wizard
+# ------------------------------------------------------------------
 def run_wizard():
+    """
+    Orchestrates the 8-step flow. 
+    Each step has a static form; if fields are missing after form submission,
+    we display dynamic Qs. We also track changes via trigger_engine.
+    """
     step = st.session_state.get("wizard_step", 1)
+
     if step == 1:
         start_discovery_page()
+
     elif step == 2:
-        # Step 2: static form + dynamic questions
+        # Step 2 form
         with st.form("step2_form"):
             values = render_step2_static()
             submitted = st.form_submit_button("Next")
         if submitted:
-            # Update session_state with form inputs
+            # Update state + trigger engine
             for k, v in values.items():
                 st.session_state[k] = v
-            # Notify trigger engine for each updated key
             for k in STEP_KEYS[2]:
                 st.session_state.trigger_engine.notify_change(k, st.session_state)
-            # Determine missing fields for dynamic Q
+
             missing = [k for k in STEP_KEYS[2] if not st.session_state[k]]
             if missing:
                 st.session_state["step2_static_submitted"] = True
+                if "trace_events" not in st.session_state:
+                    st.session_state["trace_events"] = []
                 st.session_state.trace_events.append(f"Step 2 submitted. Missing: {missing}")
                 st.rerun()
             else:
@@ -469,28 +536,28 @@ def run_wizard():
                 st.session_state["wizard_step"] = 3
                 st.session_state.trace_events.append("Step 2 submitted. All fields provided.")
                 st.rerun()
-        # Dynamic question phase for step 2
+
+        # If static form was submitted but some fields are still missing => dynamic Q
         if st.session_state.get("step2_static_submitted"):
-            # Identify up to 5 missing keys (already computed above if we are here)
             missing_keys = [k for k in STEP_KEYS[2] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
             for key in missing_keys[:5]:
-                # Friendly label for the field
                 label = key.replace("_", " ").title()
-                # Use text_area for longer inputs and text_input for short ones
                 if "description" in key or "tasks" in key or "details" in key or "comments" in key:
                     st.text_area(label, key=key)
                 else:
                     st.text_input(label, key=key)
+
             if st.button("Continue", key="continue_step2"):
-                # Notify trigger engine for any newly filled fields
                 for k in STEP_KEYS[2]:
                     st.session_state.trigger_engine.notify_change(k, st.session_state)
                 st.session_state["step2_static_submitted"] = False
                 st.session_state["wizard_step"] = 3
-                st.session_state.trace_events.append("Step 2 dynamic questions answered, continuing to step 3.")
+                st.session_state.trace_events.append("Step 2 dynamic questions answered. On to step 3.")
                 st.rerun()
+
     elif step == 3:
+        # Step 3 form
         with st.form("step3_form"):
             values = render_step3_static()
             submitted = st.form_submit_button("Next")
@@ -509,23 +576,23 @@ def run_wizard():
                 st.session_state["wizard_step"] = 4
                 st.session_state.trace_events.append("Step 3 submitted. All fields provided.")
                 st.rerun()
+
         if st.session_state.get("step3_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[3] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
             for key in missing_keys[:5]:
                 label = key.replace("_", " ").title()
-                if "role_description" in key or "supervises" in key or "priority_projects" in key or "keywords" in key or "metrics" in key:
-                    st.text_area(label, key=key)
-                else:
-                    st.text_input(label, key=key)
+                st.text_area(label, key=key)  # or text_input if short
             if st.button("Continue", key="continue_step3"):
                 for k in STEP_KEYS[3]:
                     st.session_state.trigger_engine.notify_change(k, st.session_state)
                 st.session_state["step3_static_submitted"] = False
                 st.session_state["wizard_step"] = 4
-                st.session_state.trace_events.append("Step 3 dynamic questions answered, continuing to step 4.")
+                st.session_state.trace_events.append("Step 3 dynamic questions answered, on to step 4.")
                 st.rerun()
+
     elif step == 4:
+        # Step 4 form
         with st.form("step4_form"):
             values = render_step4_static()
             submitted = st.form_submit_button("Next")
@@ -544,20 +611,23 @@ def run_wizard():
                 st.session_state["wizard_step"] = 5
                 st.session_state.trace_events.append("Step 4 submitted. All fields provided.")
                 st.rerun()
+
         if st.session_state.get("step4_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[4] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
             for key in missing_keys[:5]:
                 label = key.replace("_", " ").title()
-                st.text_area(label, key=key)  # most in step 4 are multi-line
+                st.text_area(label, key=key) 
             if st.button("Continue", key="continue_step4"):
                 for k in STEP_KEYS[4]:
                     st.session_state.trigger_engine.notify_change(k, st.session_state)
                 st.session_state["step4_static_submitted"] = False
                 st.session_state["wizard_step"] = 5
-                st.session_state.trace_events.append("Step 4 dynamic questions answered, continuing to step 5.")
+                st.session_state.trace_events.append("Step 4 dynamic questions answered, on to step 5.")
                 st.rerun()
+
     elif step == 5:
+        # Step 5 form
         with st.form("step5_form"):
             values = render_step5_static()
             submitted = st.form_submit_button("Next")
@@ -576,25 +646,23 @@ def run_wizard():
                 st.session_state["wizard_step"] = 6
                 st.session_state.trace_events.append("Step 5 submitted. All fields provided.")
                 st.rerun()
+
         if st.session_state.get("step5_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[5] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
             for key in missing_keys[:5]:
                 label = key.replace("_", " ").title()
-                if key in ("hard_skills", "soft_skills", "must_have_skills", "nice_to_have_skills",
-                           "certifications_required", "language_requirements", "tool_proficiency",
-                           "domain_expertise", "leadership_competencies", "technical_stack", "soft_requirement_details"):
-                    st.text_area(label, key=key)
-                else:
-                    st.text_input(label, key=key)
+                st.text_area(label, key=key)
             if st.button("Continue", key="continue_step5"):
                 for k in STEP_KEYS[5]:
                     st.session_state.trigger_engine.notify_change(k, st.session_state)
                 st.session_state["step5_static_submitted"] = False
                 st.session_state["wizard_step"] = 6
-                st.session_state.trace_events.append("Step 5 dynamic questions answered, continuing to step 6.")
+                st.session_state.trace_events.append("Step 5 dynamic questions answered, on to step 6.")
                 st.rerun()
+
     elif step == 6:
+        # Step 6 form
         with st.form("step6_form"):
             values = render_step6_static()
             submitted = st.form_submit_button("Next")
@@ -613,21 +681,23 @@ def run_wizard():
                 st.session_state["wizard_step"] = 7
                 st.session_state.trace_events.append("Step 6 submitted. All fields provided.")
                 st.rerun()
+
         if st.session_state.get("step6_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[6] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
             for key in missing_keys[:5]:
                 label = key.replace("_", " ").title()
-                # Most comp & benefits fields are short text or select; use text_input for any missing
                 st.text_input(label, key=key)
             if st.button("Continue", key="continue_step6"):
                 for k in STEP_KEYS[6]:
                     st.session_state.trigger_engine.notify_change(k, st.session_state)
                 st.session_state["step6_static_submitted"] = False
                 st.session_state["wizard_step"] = 7
-                st.session_state.trace_events.append("Step 6 dynamic questions answered, continuing to step 7.")
+                st.session_state.trace_events.append("Step 6 dynamic questions answered, on to step 7.")
                 st.rerun()
+
     elif step == 7:
+        # Step 7 form
         with st.form("step7_form"):
             values = render_step7_static()
             submitted = st.form_submit_button("Next")
@@ -646,39 +716,39 @@ def run_wizard():
                 st.session_state["wizard_step"] = 8
                 st.session_state.trace_events.append("Step 7 submitted. All fields provided.")
                 st.rerun()
+
         if st.session_state.get("step7_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[7] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
             for key in missing_keys[:5]:
                 label = key.replace("_", " ").title()
-                if "steps" in key or "tests" in key or "overview" in key or "instructions" in key:
-                    st.text_area(label, key=key)
-                else:
-                    st.text_input(label, key=key)
+                st.text_area(label, key=key)
             if st.button("Continue", key="continue_step7"):
                 for k in STEP_KEYS[7]:
                     st.session_state.trigger_engine.notify_change(k, st.session_state)
                 st.session_state["step7_static_submitted"] = False
                 st.session_state["wizard_step"] = 8
-                st.session_state.trace_events.append("Step 7 dynamic questions answered, continuing to step 8.")
+                st.session_state.trace_events.append("Step 7 dynamic questions answered, on to step 8.")
                 st.rerun()
+
     elif step == 8:
         render_step8()
+
     else:
-        # Edge case: reset if out-of-bounds
+        # fallback
         st.session_state["wizard_step"] = 1
         st.rerun()
 
-    # Navigation controls (Back/Next) at bottom, controlling step transitions
+    # --- Navigation controls ---
     if step > 1:
         if st.button("⬅️ Back"):
-            # If going back from a step where dynamic Q was open, reset its flag
+            # If going back from a step with dynamic Q open, reset its flag
             if st.session_state.get(f"step{step}_static_submitted"):
                 st.session_state[f"step{step}_static_submitted"] = False
             st.session_state["wizard_step"] -= 1
             st.rerun()
+
     if step < 8 and not st.session_state.get(f"step{step}_static_submitted", False):
         if st.button("Next ➡"):
-            # Increment step if no dynamic questions are pending
             st.session_state["wizard_step"] += 1
             st.rerun()
