@@ -152,52 +152,61 @@ def match_and_store_keys(raw_text: str) -> None:
 
 # Step 1: Start Discovery (Input source analysis)
 def start_discovery_page():
+    import streamlit as st
+    from your_parsers_module import parse_file, fetch_url_text, match_and_store_keys  # Update to your actual module
+
+    # Set App Title + Config (only once at app level ideally, move to app.py if needed)
+    st.set_page_config(
+        page_title="RoleCraft - Create your perfect role",
+        page_icon="🚀",
+        layout="centered"
+    )
+
     # Language toggle (session-level)
-    lang = st.radio("\ud83c\udf10 Sprache / Language", ("Deutsch", "English"), horizontal=True)
-# Set App Title
-st.set_page_config(
-    page_title="RoleCraft - Create your perfect role",
-    page_icon="\ud83d\ude80",
-    layout="centered"
-)
+    lang = st.radio("🌐 Sprache / Language", ("Deutsch", "English"), horizontal=True)
 
-# RoleCraft Main Titles
-if lang == "Deutsch":
-    st.title("\ud83d\ude80 Erstelle die perfekte Stellenbeschreibung")
-    st.subheader("Von der ersten Idee bis zur fertigen Ausschreibung.")
-    intro_text = ("Willkommen bei **RoleCraft**.\n"
-                  "Starte mit einem Jobtitel oder lade eine Anzeige hoch.\n"
-                  "Unser KI-gestützter Wizard analysiert, ergänzt fehlende Infos und begleitet dich sicher zum perfekten Profil.")
-    button_job = "➕ Jobtitel eingeben"
-    button_upload = "\ud83d\udcc2 PDF / DOCX hochladen"
-else:
-    st.title("\ud83d\ude80 Create the Perfect Job Description")
-    st.subheader("From the first idea to a fully crafted profile.")
-    intro_text = ("Welcome to **RoleCraft**.\n"
-                  "Start with a job title or upload an ad.\n"
-                  "Our AI-powered wizard analyzes, fills gaps, and guides you seamlessly to a perfect profile.")
-    button_job = "➕ Enter Job Title"
-    button_upload = "\ud83d\udcc2 Upload PDF / DOCX"
+    # RoleCraft Main Titles
+    if lang == "Deutsch":
+        st.title("🚀 Erstelle die perfekte Stellenbeschreibung")
+        st.subheader("Von der ersten Idee bis zur fertigen Ausschreibung.")
+        intro_text = (
+            "Willkommen bei **RoleCraft**.\n\n"
+            "Starte mit einem Jobtitel oder lade eine Anzeige hoch.\n"
+            "Unser KI-gestützter Wizard analysiert, ergänzt fehlende Infos und begleitet dich sicher zum perfekten Profil."
+        )
+        button_job = "➕ Jobtitel eingeben"
+        button_upload = "📂 PDF / DOCX hochladen"
+    else:
+        st.title("🚀 Create the Perfect Job Description")
+        st.subheader("From the first idea to a fully crafted profile.")
+        intro_text = (
+            "Welcome to **RoleCraft**.\n\n"
+            "Start with a job title or upload an ad.\n"
+            "Our AI-powered wizard analyzes, fills gaps, and guides you seamlessly to a perfect profile."
+        )
+        button_job = "➕ Enter Job Title"
+        button_upload = "📂 Upload PDF / DOCX"
 
-# Main Intro Text
-st.markdown(intro_text)
+    # Main Intro Text
+    st.markdown(intro_text)
 
-st.title("Vacalyser – Start Discovery")
-st.write("Enter a job title and either a link to an existing job ad or upload a job description file. "
+    # Vacalyser Upload Section
+    st.header("Vacalyser – Start Discovery")
+    st.write("Enter a job title and either a link to an existing job ad or upload a job description file. "
              "The wizard will analyze the content and auto-fill relevant fields where possible.")
+
     col1, col2 = st.columns([1, 1])
     with col1:
-        # Job title input (optional if provided via upload)
-        job_title = st.text_input("Job Title", value=st.session_state.get("job_title", ""), placeholder="e.g. Senior Data Scientist")
+        job_title = st.text_input(button_job, value=st.session_state.get("job_title", ""), placeholder="e.g. Senior Data Scientist")
         if job_title:
             st.session_state["job_title"] = job_title
-        # URL input
-        input_url = st.text_input("Job Ad URL (optional)", value=st.session_state.get("input_url", ""))
+
+        input_url = st.text_input("🔗 Job Ad URL (optional)", value=st.session_state.get("input_url", ""))
         if input_url:
             st.session_state["input_url"] = input_url
+
     with col2:
-        # File upload input
-        uploaded_file = st.file_uploader("Upload Job Ad (PDF, DOCX, or TXT)", type=["pdf", "docx", "txt"])
+        uploaded_file = st.file_uploader(button_upload, type=["pdf", "docx", "txt"])
         if uploaded_file is not None:
             file_bytes = uploaded_file.read()
             raw_text = parse_file(file_bytes, uploaded_file.name)
@@ -205,31 +214,28 @@ st.write("Enter a job title and either a link to an existing job ad or upload a 
                 st.session_state["uploaded_file"] = raw_text
                 st.success("✅ File uploaded and text extracted.")
             else:
-                st.error("Failed to extract text from the uploaded file.")
-    # Analyze button to extract fields from provided source(s)
-    analyze_clicked = st.button("Analyze Sources")
+                st.error("❌ Failed to extract text from the uploaded file.")
+
+    analyze_clicked = st.button("🔎 Analyze Sources")
     if analyze_clicked:
         raw_text = ""
-        # Prefer file content if available, otherwise fetch URL
         if st.session_state.get("uploaded_file"):
             raw_text = st.session_state["uploaded_file"]
         elif st.session_state.get("input_url"):
             raw_text = fetch_url_text(st.session_state["input_url"])
+
         if not raw_text:
-            st.warning("Please provide a valid URL or upload a file before analysis.")
+            st.warning("⚠️ Please provide a valid URL or upload a file before analysis.")
         else:
-            # Store raw parsed text and attempt to extract fields
             st.session_state["parsed_data_raw"] = raw_text
             try:
                 match_and_store_keys(raw_text)
-                st.success("🔎 Analysis complete! Key details have been auto-filled from the source.")
-                # Log trace event
+                st.success("🎯 Analysis complete! Key details auto-filled.")
+                if "trace_events" not in st.session_state:
+                    st.session_state["trace_events"] = []
                 st.session_state.trace_events.append("Auto-extracted fields from provided job description.")
             except Exception as e:
-                st.error(f"Analysis failed: {e}")
-        # After analysis (successful or not), we remain on this page for user to review.
-        # The user can now click "Next" to proceed regardless.
-
+                st.error(f"❌ Analysis failed: {e}")
 # Helper functions to render static forms for steps 2-7
 def render_step2_static():
     st.title("Step 2: Basic Job & Company Info")
