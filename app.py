@@ -16,8 +16,13 @@ from logic.trigger_engine import TriggerEngine, build_default_graph  # src/logic
 from src.processors import register_all_processors                      # src/processors.py
 from pages.wizard import run_wizard                                  # src/pages/wizard.py
 
-# 3. Streamlit page config (wide layout, title, icon)
-st.set_page_config(page_title="Vacalyser Wizard", page_icon="🧩", layout="wide")
+# Global App Configuration
+st.set_page_config(
+    page_title="RoleCraft - Create your perfect role",
+    page_icon="🚀",
+    page_icon="🧩",
+    layout="centered"
+)
 
 engine = TriggerEngine()
 build_default_graph(engine)
