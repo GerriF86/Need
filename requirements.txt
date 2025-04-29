@@ -11,7 +11,7 @@ streamlit-aggrid>=0.3.5       # (optional) spreadsheet-like tables
 faiss-cpu>=1.8.0              # vector store for semantic search
 sentence-transformers>=2.4    # embeddings generation
 python-docx>=1.1.0            # DOCX parsing
-PyMuPDF>=1.23.26              # PDF parsing (used in file_tools and wizard)
+PyMuPDF==1.23.17              # PDF parsing (used in file_tools and wizard)
 beautifulsoup4>=4.12          # HTML parsing (scraping_tools)
 requests>=2.31                # HTTP client
 networkx>=3.2.1               # dependency/trigger graph (for dynamic workflows)
