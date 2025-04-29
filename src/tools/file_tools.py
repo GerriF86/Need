@@ -1,4 +1,4 @@
-from openai_agents import tool
+from src.utils.tool_registry import tool
 
 @tool
 def extract_text_from_file(file_content: bytes, filename: str) -> str:
