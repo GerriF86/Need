@@ -156,7 +156,6 @@ def match_and_store_keys(raw_text: str) -> None:
 # Step 1: Start Discovery (Input source analysis)
 def start_discovery_page():
     import streamlit as st
-    from your_parsers_module import parse_file, fetch_url_text, match_and_store_keys  # Update to your actual module
 
     # Language toggle (session-level)
     lang = st.radio("🌐 Sprache / Language", ("Deutsch", "English"), horizontal=True)
