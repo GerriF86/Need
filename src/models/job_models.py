@@ -1,117 +1,43 @@
-# src/models/job_models.py
-
-from pydantic import BaseModel, Field, HttpUrl, conint, validator
-from typing import Optional, List, Tuple
-from datetime import date
+from pydantic import BaseModel, Field
+from typing import Optional, List
 
 class JobSpec(BaseModel):
-    # Discovery
-    job_title: str = Field(..., title="Job Title")
-    input_url: Optional[HttpUrl] = Field(None, title="Job Ad URL")
-    parsed_data_raw: Optional[str] = Field("", title="Raw Parsed Data")
-    source_language: Optional[str] = Field("", title="Source Language")
+    # Basic job and company info
+    job_title: str = Field(..., description="Title of the job position")
+    company_name: Optional[str] = Field(None, description="Name of the company offering the job")
+    brand_name: Optional[str] = Field(None, description="Brand or subsidiary name if applicable")
+    headquarters_location: Optional[str] = Field(None, description="Headquarters location of the company")
+    city: Optional[str] = Field(None, description="City/region of the job")
+    company_website: Optional[str] = Field(None, description="Company website URL")
+    company_size: Optional[str] = Field(None, description="Size of the company (e.g., number of employees or category like '100-500')")
+    industry_sector: Optional[str] = Field(None, description="Industry sector of the company")
+    job_type: Optional[str] = Field(None, description="Type of job (e.g., Full-time, Part-time)")
+    contract_type: Optional[str] = Field(None, description="Contract type (e.g., Permanent, Temporary, Internship)")
+    job_level: Optional[str] = Field(None, description="Level/seniority of the role (e.g., Entry, Manager, Director)")
+    date_of_employment_start: Optional[str] = Field(None, description="Start date of employment or 'ASAP' etc.")
 
-    # Company Information
-    company_name: str = Field(..., title="Company Name")
-    brand_name: Optional[str] = Field("", title="Brand Name (if different)")
-    headquarters_location: Optional[str] = Field("", title="Headquarters Location")
-    company_website: Optional[HttpUrl] = Field(None, title="Company Website")
-    company_size: Optional[str] = Field("", title="Company Size")
-    industry_sector: Optional[str] = Field("", title="Industry Sector")
-    city: Optional[str] = Field("", title="City (Job Location)")
+    # Role Definition
+    role_description: Optional[str] = Field(None, description="Overview of the role's purpose and scope")
+    reports_to: Optional[str] = Field(None, description="Position or title this role reports to")
+    supervises: Optional[str] = Field(None, description="Positions or titles this role supervises (if any)")
+    role_type: Optional[str] = Field(None, description="Type of role (e.g., Technical, Managerial, Support)")
+    role_performance_metrics: Optional[str] = Field(None, description="How performance in this role is measured")
+    role_priority_projects: Optional[str] = Field(None, description="Current priority projects or goals for this role")
+    travel_requirements: Optional[str] = Field(None, description="Travel requirements for the role, if any")
+    work_schedule: Optional[str] = Field(None, description="Work schedule (e.g., Mon-Fri, shifts) and flexibility")
+    decision_making_authority: Optional[str] = Field(None, description="Decisions this role is authorized to make")
+    role_keywords: Optional[str] = Field(None, description="Keywords associated with the role (for search/SEO)")
 
-    # Job Basics
-    job_type: str = Field(..., title="Job Type")
-    contract_type: str = Field(..., title="Contract Type")
-    job_level: str = Field(..., title="Job Level")
-    date_of_employment_start: Optional[str] = Field("", title="Start Date")
+    # Tasks & Responsibilities
+    task_list: Optional[List[str]] = Field(None, description="List of main tasks for the role")
+    key_responsibilities: Optional[str] = Field(None, description="Summary of key responsibilities")
+    technical_tasks: Optional[List[str]] = Field(None, description="Technical or hands-on tasks part of the role")
+    managerial_tasks: Optional[List[str]] = Field(None, description="Managerial or leadership tasks part of the role")
 
-    # Role Description
-    role_description: str = Field(..., title="Role Description")
-    reports_to: Optional[str] = Field("", title="Reports To")
-    supervises: Optional[str] = Field("", title="Supervises")
-    role_type: Optional[str] = Field("", title="Role Type")
-    role_priority_projects: Optional[str] = Field("", title="Priority Projects")
-    travel_requirements: Optional[str] = Field("", title="Travel Requirements")
-    work_schedule: Optional[str] = Field("", title="Work Schedule")
-    role_keywords: Optional[str] = Field("", title="Role Keywords")
-    decision_making_authority: Optional[str] = Field("", title="Decision Making Authority")
-    role_performance_metrics: Optional[str] = Field("", title="Performance Metrics")
+    # Qualifications (if any – not sure if present in original, add if needed)
+    # e.g., qualifications: Optional[str] = None, etc.
 
-    # Tasks
-    task_list: Optional[str] = Field("", title="General Task List")
-    key_responsibilities: Optional[str] = Field("", title="Key Responsibilities")
-    technical_tasks: Optional[str] = Field("", title="Technical Tasks")
-    managerial_tasks: Optional[str] = Field("", title="Managerial Tasks")
-    administrative_tasks: Optional[str] = Field("", title="Administrative Tasks")
-    customer_facing_tasks: Optional[str] = Field("", title="Customer Facing Tasks")
-    internal_reporting_tasks: Optional[str] = Field("", title="Internal Reporting Tasks")
-    performance_tasks: Optional[str] = Field("", title="Performance-Related Tasks")
-    innovation_tasks: Optional[str] = Field("", title="Innovation Tasks")
-    task_prioritization: Optional[str] = Field("", title="Task Prioritization")
+    # (We can extend with more fields like salary, benefits, publication date, etc., as needed.)
 
-    # Skills & Competencies
-    must_have_skills: Optional[str] = Field("", title="Must-Have Skills")
-    hard_skills: Optional[str] = Field("", title="Hard Skills")
-    nice_to_have_skills: Optional[str] = Field("", title="Nice-to-Have Skills")
-    soft_skills: Optional[str] = Field("", title="Soft Skills")
-    certifications_required: Optional[str] = Field("", title="Certifications Required")
-    language_requirements: Optional[str] = Field("", title="Language Requirements")
-    tool_proficiency: Optional[str] = Field("", title="Tool Proficiency")
-    domain_expertise: Optional[str] = Field("", title="Domain Expertise")
-    leadership_competencies: Optional[str] = Field("", title="Leadership Competencies")
-    technical_stack: Optional[str] = Field("", title="Technical Stack")
-    industry_experience: Optional[str] = Field("", title="Industry Experience")
-    analytical_skills: Optional[str] = Field("", title="Analytical Skills")
-    communication_skills: Optional[str] = Field("", title="Communication Skills")
-    project_management_skills: Optional[str] = Field("", title="Project Management Skills")
-    soft_requirement_details: Optional[str] = Field("", title="Additional Soft Requirements")
-    visa_sponsorship: Optional[str] = Field("", title="Visa Sponsorship")
-
-    # Compensation
-    salary_range: Optional[Tuple[int, int]] = Field(None, title="Salary Range (min, max)")
-    currency: str = Field("", title="Currency")
-    pay_frequency: str = Field("", title="Pay Frequency")
-    bonus_scheme: Optional[str] = Field("", title="Bonus Scheme")
-    commission_structure: Optional[str] = Field("", title="Commission Structure")
-    vacation_days: Optional[int] = Field(28, title="Vacation Days")
-    flexible_hours: Optional[str] = Field("", title="Flexible Hours")
-    remote_work_policy: str = Field("", title="Remote Work Policy")
-    relocation_assistance: Optional[str] = Field("", title="Relocation Assistance")
-    childcare_support: Optional[str] = Field("", title="Childcare Support")
-
-    # Recruitment
-    recruitment_steps: Optional[str] = Field("", title="Recruitment Steps")
-    number_of_interviews: Optional[int] = Field(2, title="Number of Interview Rounds")
-    interview_format: Optional[str] = Field("", title="Interview Format")
-    assessment_tests: Optional[str] = Field("", title="Assessment Tests")
-    recruitment_timeline: Optional[str] = Field("", title="Recruitment Timeline (weeks)")
-    onboarding_process_overview: Optional[str] = Field("", title="Onboarding Overview")
-    recruitment_contact_email: Optional[str] = Field("", title="Recruitment Contact Email")
-    recruitment_contact_phone: Optional[str] = Field("", title="Recruitment Contact Phone")
-    application_instructions: Optional[str] = Field("", title="Application Instructions")
-
-    # Additional Metadata
-    language_of_ad: str = Field("", title="Language of Advertisement")
-    translation_required: bool = Field(False, title="Translation Required")
-    desired_publication_channels: Optional[str] = Field("", title="Publication Channels")
-    employer_branding_elements: Optional[str] = Field("", title="Employer Branding Elements")
-    internal_job_id: Optional[str] = Field("", title="Internal Job ID")
-    ad_seniority_tone: str = Field("", title="Ad Seniority Tone")
-    ad_length_preference: str = Field("", title="Ad Length Preference")
-    deadline_urgency: Optional[str] = Field("", title="Application Deadline Urgency")
-    company_awards: Optional[str] = Field("", title="Company Awards")
-    diversity_inclusion_statement: Optional[str] = Field("", title="Diversity and Inclusion Statement")
-    legal_disclaimers: Optional[str] = Field("", title="Legal Disclaimers")
-    social_media_links: Optional[str] = Field("", title="Social Media Links")
-    video_introduction_option: Optional[str] = Field("", title="Video Introduction Option")
-    comments_internal: Optional[str] = Field("", title="Internal Comments")
-
-    # Validators
-    @validator("salary_range")
-    def check_salary_range(cls, val):
-        if val is not None:
-            min_sal, max_sal = val
-            if min_sal > max_sal:
-                raise ValueError("Minimum salary must be less than or equal to maximum salary.")
-        return val
+    # Enable model config for JSON serialization if needed
+    model_config = {"populate_by_name": True, "str_strip_whitespace": True}

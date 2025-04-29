@@ -1,58 +1,63 @@
-from __future__ import annotations
-import re, unicodedata
-from typing import List, Dict, Any, Tuple, Mapping
-import streamlit as st
-from pydantic import BaseModel, Field
-from openai import OpenAI
-from src.trigger_engine import TriggerEngine, build_default_graph
+import openai
+from src.models.job_models import JobSpec
 
-_openai = OpenAI()          # env var / st.secrets
+SYSTEM_MSG = "You are an assistant helping to elaborate a job role definition based on given information."
 
-class RoleBreakdown(BaseModel):
-    tasks:  List[str] = Field(..., description="Verb-started sentences.")
-    skills: List[str] = Field(..., description="Single-word skills.")
-    extras: List[str] = Field([],  description="Other bullets.")
-
-JSON_SCHEMA: Dict[str, Any] = RoleBreakdown.model_json_schema()
-
-def _clean_skill(tok: str) -> str:
-    tok = unicodedata.normalize("NFKD", tok)
-    tok = re.sub(r"[^\w+-]", "", tok)
-    return tok.lower().strip()
-
-def extract_role_details(role_description: str,
-                         state: Mapping[str, Any] | None = None,
-                         engine: TriggerEngine | None = None
-                         ) -> Tuple[List[str], List[str]]:
-    resp = _openai.chat.completions.create(
-        model="gpt-4o-mini",
-        temperature=0.0,
-        max_tokens=512,
-        response_format={"type": "json_object", "schema": JSON_SCHEMA},
-        messages=[
-            {"role": "system",
-             "content": ("Extract bullet tasks + single-word skills as JSON.")},
-            {"role": "user", "content": role_description},
-        ],
+def generate_role_breakdown(spec: dict) -> dict:
+    """
+    Use GPT to generate detailed role definition (description, reports_to, supervises, etc.)
+    based on the current job spec fields (spec should be a dict possibly from SessionState.get_job_spec_dict()).
+    Returns a dict of the filled fields.
+    """
+    # Construct a prompt using existing spec data
+    job_title = spec.get("job_title") or "this role"
+    company = spec.get("company_name") or ""
+    industry = spec.get("industry_sector") or ""
+    intro = f"The role is '{job_title}'."
+    if company:
+        intro += f" Company: {company}."
+    if industry:
+        intro += f" Industry: {industry}."
+    intro += " Provide a role overview and reporting structure."
+    user_msg = intro + (
+        "\nPlease draft:\n"
+        "- A role_description (what this role does and its purpose).\n"
+        "- Who it reports_to and who it supervises (if any).\n"
+        "- Key performance metrics and priority projects for this role (if known).\n"
+        "Output only in JSON with keys: role_description, reports_to, supervises, role_performance_metrics, role_priority_projects."
     )
-    data = RoleBreakdown.model_validate_json(resp.choices[0].message.content)
-    state = state or st.session_state
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": SYSTEM_MSG},
+                {"role": "user", "content": user_msg}
+            ],
+            temperature=0.7,
+            max_tokens=800
+        )
+        content = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"generate_role_breakdown error: {e}")
+        return {}
 
-    for i, t in enumerate(data.tasks, 1):
-        state[f"task_{i:02d}"] = t.strip()
-    for i, s in enumerate(data.skills, 1):
-        state[f"skill_{i:02d}"] = _clean_skill(s)
-
-    state["task_list"]   = "\n".join(data.tasks)
-    state["hard_skills"] = ", ".join(sorted({_clean_skill(s) for s in data.skills}))
-
-    if engine is None:
-        engine = getattr(st.session_state, "_trigger_engine", None) or TriggerEngine()
-        build_default_graph(engine)
-        st.session_state._trigger_engine = engine
-
-    for f in [f"task_{i:02d}" for i in range(1, len(data.tasks)+1)] + \
-             [f"skill_{i:02d}" for i in range(1, len(data.skills)+1)]:
-        engine.notify_change(f, state)
-
-    return data.tasks, data.skills
+    # Remove code fences if any and parse JSON
+    if content.startswith("```"):
+        content = content.strip("` \n")
+    result = {}
+    try:
+        result = JobSpec.model_validate_json(content)  # This will ignore extra keys not in JobSpec
+        result = result.model_dump()
+    except Exception as e:
+        # If parsing fails (maybe the model gave just the subset JSON), we attempt to safely eval or so
+        try:
+            import json
+            partial = json.loads(content)
+            # Only keep the relevant keys we expect in this stage
+            allowed_keys = {"role_description", "reports_to", "supervises", "role_performance_metrics", "role_priority_projects"}
+            for k, v in partial.items():
+                if k in allowed_keys:
+                    result[k] = v
+        except Exception as e2:
+            print(f"Failed to parse role_breakdown JSON: {e2}")
+    return result
