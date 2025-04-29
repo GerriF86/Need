@@ -13,7 +13,7 @@ if str(_SRC) not in sys.path:
 # 2. Local imports (initialized modules)
 from state.session_state import initialize_session_state      # src/state/session_state.py
 from logic.trigger_engine import TriggerEngine, build_default_graph  # src/logic/trigger_engine.py
-from src.processors.processors import register_all_processors                      # src/processors.py
+from src.processors import register_all_processors                      # src/processors.py
 from pages.wizard import run_wizard                                  # src/pages/wizard.py
 
 # 3. Streamlit page config (wide layout, title, icon)
