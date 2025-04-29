@@ -19,7 +19,6 @@ from pages.wizard import run_wizard                                  # src/pages
 # Global App Configuration
 st.set_page_config(
     page_title="RoleCraft - Create your perfect role",
-    page_icon="🚀",
     page_icon="🧩",
     layout="centered"
 )
