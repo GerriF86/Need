@@ -11,13 +11,13 @@ Recomputes **salary_range** when *task_list*, *must_have_skills* or
 """
 from __future__ import annotations
 from typing import Any, Dict
-
+from src.utils.tool_registry import chat_completion
 import os
 from openai import OpenAI, APIConnectionError
 
 _OPENAI_KEY = os.getenv("OPENAI_API_KEY")
 client = OpenAI(api_key=_OPENAI_KEY) if _OPENAI_KEY else None
-
+answer = chat_completion(prompt, model="gpt-4o-mini", temperature=0.2, max_tokens=40)
 
 def _llm_salary_estimate(role: str, tasks: str, skills: str, city: str) -> str:
     """Tiny helper – wraps the OpenAI completion."""
