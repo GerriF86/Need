@@ -19,6 +19,10 @@ from pages.wizard import run_wizard                                  # src/pages
 # 3. Streamlit page config (wide layout, title, icon)
 st.set_page_config(page_title="Vacalyser Wizard", page_icon="🧩", layout="wide")
 
+engine = TriggerEngine()
+build_default_graph(engine)
+register_all_processors(engine)
+
 # 4. Initialize session state and TriggerEngine on first load
 initialize_session_state()
 if "trigger_engine" not in st.session_state:
