@@ -182,8 +182,8 @@ else:
 # Main Intro Text
 st.markdown(intro_text)
 
-    st.title("Vacalyser – Start Discovery")
-    st.write("Enter a job title and either a link to an existing job ad or upload a job description file. "
+st.title("Vacalyser – Start Discovery")
+st.write("Enter a job title and either a link to an existing job ad or upload a job description file. "
              "The wizard will analyze the content and auto-fill relevant fields where possible.")
     col1, col2 = st.columns([1, 1])
     with col1:
