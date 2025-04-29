@@ -5,11 +5,11 @@ import streamlit as st
 from pathlib import Path
 
 # ── Cross-cutting components (see cross_components.py) ────────────────
-from cross_components import (
+from src.cross_components import (
     ToolRegistry, Guardrails, TraceViewer, DynamicQuestionEngine
 )
-from utils.file_parsers import parse_file      # PDF/DOCX/TXT parser
-from utils.text_helpers import to_title_case   # normalises job titles
+from src.utils.file_parsers import parse_file      # PDF/DOCX/TXT parser
+from src.utils.text_helpers import to_title_case   # normalises job titles
 
 # single ChatGPT handle
 chatgpt = ToolRegistry.get_or_register(
