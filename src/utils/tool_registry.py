@@ -1,18 +1,27 @@
 # src/utils/tool_registry.py
 # ────────────────────────────────────────────────────────────────────────────
-"""Global Tool & LLM helper for Vacalyser.
+"""
+Global Tool & LLM helper for Vacalyser Wizard
+=============================================
+*  **chat_completion(...)**  → OpenAI v1 wrapper (3-retry exponential back-off)
+*  **@tool** / get_tool()    → tiny registry making any callable discoverable
+---------------------------------------------------------------------------
+Environment variables *or* Streamlit `st.secrets` are honoured automatically:
 
-* **LLM wrapper** (`chat_completion`) – OpenAI v1 client, 3-retry back-off
-* **Tool registry**   (`@tool`)        – makes any callable discoverable
+    OPENAI_API_KEY       mandatory
+    OPENAI_ORGANIZATION  optional
+    OPENAI_MODEL         optional (falls back to 'gpt-4o')
 """
 
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable, Dict, List, Union
+import os
+from typing import Any, Callable, Dict, List
 
-from openai import OpenAI          # pip install openai>=1.0
-from tenacity import (             # pip install tenacity
+import streamlit as st
+from openai import OpenAI                     # pip install openai>=1.0
+from tenacity import (                        # pip install tenacity
     retry,
     stop_after_attempt,
     wait_exponential,
@@ -20,28 +29,47 @@ from tenacity import (             # pip install tenacity
 )
 
 # ────────────────────────────────────────────────────────────────────────────
-# 1.  OpenAI client – pulled from env / st.secrets automatically
+# 1  OpenAI client (instantiated exactly once)
 # ────────────────────────────────────────────────────────────────────────────
-_client = OpenAI()     # auto-reads OPENAI_API_KEY + OPENAI_ORG
-_MODEL_DEFAULT = "gpt-4o"
+_api_key = (
+    os.getenv("OPENAI_API_KEY")
+    or st.secrets.get("OPENAI_API_KEY", "")    # ← Streamlit secrets take 2nd priority
+)
+if not _api_key:
+    raise RuntimeError("OPENAI_API_KEY not found (env or st.secrets).")
 
+_client = OpenAI(
+    api_key=_api_key,
+    organization=os.getenv("OPENAI_ORGANIZATION") or st.secrets.get("OPENAI_ORGANIZATION"),
+)
 
-# ------------------------------------------------------------------------
-# 1a  – helper with 3-retry exponential back-off (1s → 4s)
-# ------------------------------------------------------------------------
+_MODEL_DEFAULT: str = (
+    os.getenv("OPENAI_MODEL") or st.secrets.get("OPENAI_MODEL", "gpt-4o")
+)
+
+# ────────────────────────────────────────────────────────────────────────────
+# 1a  Low-level chat call with three retries (1 → 4 s back-off)
+# ────────────────────────────────────────────────────────────────────────────
 @retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=4),
-    retry=(
-        retry_if_exception_type(IOError)
-        | retry_if_exception_type(RuntimeError)
-        | retry_if_exception_type(Exception)   # generic OpenAI error
-    ),
+    retry=retry_if_exception_type(Exception),
     reraise=True,
 )
-def _send_chat(messages: List[Dict[str, str]], *, model: str, **kwargs: Any) -> str:
-    """Raw call to OpenAI with retry."""
-    resp = _client.chat.completions.create(model=model, messages=messages, **kwargs)
+def _send_chat(
+    messages: List[Dict[str, str]],
+    *,
+    model: str,
+    temperature: float,
+    max_tokens: int,
+) -> str:
+    """Returns **content** of the first choice (stripped)."""
+    resp = _client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
     return resp.choices[0].message.content.strip()
 
 
@@ -53,7 +81,12 @@ def chat_completion(
     temperature: float = 0.7,
     max_tokens: int = 256,
 ) -> str:
-    """Public helper → returns *content* only (no role metadata)."""
+    """
+    Convenience façade around OpenAI ChatCompletion.
+
+    Only **returns the assistant content** (so callers never need to unpack).
+    Retries (3×) are built-in; any exception after three attempts will bubble up.
+    """
     msgs: list[dict[str, str]] = []
     if system:
         msgs.append({"role": "system", "content": system})
@@ -65,15 +98,21 @@ def chat_completion(
         max_tokens=max_tokens,
     )
 
-
 # ────────────────────────────────────────────────────────────────────────────
-# 2.  Tool registry (very small)
+# 2  Tool registry (super-small on purpose)
 # ────────────────────────────────────────────────────────────────────────────
 _TOOL_REGISTRY: Dict[str, Callable[..., Any]] = {}
 
 
 def tool(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator that auto-adds *func* to the global registry."""
+    """
+    Decorator that registers *func* under its name.
+
+    Example
+    -------
+        @tool
+        def fetch_something(url: str) -> str: ...
+    """
     _TOOL_REGISTRY[func.__name__] = func
     return func
 
@@ -84,13 +123,11 @@ def get_tool(name: str) -> Callable[..., Any]:
 
 
 def all_tools() -> Dict[str, Callable[..., Any]]:
-    """Returns the full mapping (read-only!)."""
+    """Return a **copy** of the registry (read-only for callers)."""
     return dict(_TOOL_REGISTRY)
 
-
 # ────────────────────────────────────────────────────────────────────────────
-# 3.  Convenience logging
+# 3  Logging (optional)
 # ────────────────────────────────────────────────────────────────────────────
-_log = logging.getLogger("tool_registry")
-if not _log.handlers:
-    logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
+_log = logging.getLogger(__name__)
