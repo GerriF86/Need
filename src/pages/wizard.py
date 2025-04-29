@@ -152,6 +152,36 @@ def match_and_store_keys(raw_text: str) -> None:
 
 # Step 1: Start Discovery (Input source analysis)
 def start_discovery_page():
+    # Language toggle (session-level)
+    lang = st.radio("\ud83c\udf10 Sprache / Language", ("Deutsch", "English"), horizontal=True)
+# Set App Title
+st.set_page_config(
+    page_title="RoleCraft - Create your perfect role",
+    page_icon="\ud83d\ude80",
+    layout="centered"
+)
+
+# RoleCraft Main Titles
+if lang == "Deutsch":
+    st.title("\ud83d\ude80 Erstelle die perfekte Stellenbeschreibung")
+    st.subheader("Von der ersten Idee bis zur fertigen Ausschreibung.")
+    intro_text = ("Willkommen bei **RoleCraft**.\n"
+                  "Starte mit einem Jobtitel oder lade eine Anzeige hoch.\n"
+                  "Unser KI-gestützter Wizard analysiert, ergänzt fehlende Infos und begleitet dich sicher zum perfekten Profil.")
+    button_job = "➕ Jobtitel eingeben"
+    button_upload = "\ud83d\udcc2 PDF / DOCX hochladen"
+else:
+    st.title("\ud83d\ude80 Create the Perfect Job Description")
+    st.subheader("From the first idea to a fully crafted profile.")
+    intro_text = ("Welcome to **RoleCraft**.\n"
+                  "Start with a job title or upload an ad.\n"
+                  "Our AI-powered wizard analyzes, fills gaps, and guides you seamlessly to a perfect profile.")
+    button_job = "➕ Enter Job Title"
+    button_upload = "\ud83d\udcc2 Upload PDF / DOCX"
+
+# Main Intro Text
+st.markdown(intro_text)
+
     st.title("Vacalyser – Start Discovery")
     st.write("Enter a job title and either a link to an existing job ad or upload a job description file. "
              "The wizard will analyze the content and auto-fill relevant fields where possible.")
