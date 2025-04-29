@@ -1,22 +1,23 @@
 # ───────────────────────── core ─────────────────────────
-openai>=1.76                    # Chat Completions + Agents SDK, includes beta.responses + beta.agents
-tiktoken>=0.6.0               # token-count helper used by openai
+openai>=1.76                  # Chat Completions + Agents SDK, includes beta.responses + beta.agents
+tiktoken>=0.6.0               # token-count helper used by OpenAI API
 pydantic>=2.6                 # typed data models + validation
 
 # ──────────────────────── streamlit ─────────────────────
-streamlit>=1.32
-streamlit-aggrid>=0.3.5        # (optional) spreadsheet-like tables
+streamlit>=1.32               # Core webapp engine (Python 3.11 compatible)
+streamlit-aggrid>=0.3.5       # (optional) spreadsheet-like tables
 
 # ───────────────────────── LLM tools ────────────────────
-faiss-cpu>=1.8.0               # vector store
-sentence-transformers>=2.4
-python-docx>=1.1.0             # DOCX parsing
-PyMuPDF>=1.23.26               # PDF parsing
-beautifulsoup4>=4.12
-requests>=2.31
-networkx>=3.2.1                # dependency / trigger graph
-python-dotenv>=1.0             # load .env secrets
-fpdf2>=2.7                     # PDF export utility
+faiss-cpu>=1.8.0              # vector store for semantic search
+sentence-transformers>=2.4    # embeddings generation
+python-docx>=1.1.0            # DOCX parsing
+PyMuPDF>=1.23.26              # PDF parsing (used in file_tools and wizard)
+beautifulsoup4>=4.12          # HTML parsing (scraping_tools)
+requests>=2.31                # HTTP client
+networkx>=3.2.1               # dependency/trigger graph (for dynamic workflows)
+python-dotenv>=1.0            # load environment variables
+fpdf2>=2.7                    # export to PDF format
+openai-agents>=0.2.0          # Agent toolkit for OpenAI (for vacancy_agent.py)
 
 # ────────────────────────── misc ────────────────────────
-numpy>=1.26
+numpy>=1.26                   # numerical operations (used internally by several packages)
