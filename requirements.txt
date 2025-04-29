@@ -17,7 +17,6 @@ requests>=2.31                # HTTP client
 networkx>=3.2.1               # dependency/trigger graph (for dynamic workflows)
 python-dotenv>=1.0            # load environment variables
 fpdf2>=2.7                    # export to PDF format
-openai-agents==0.2.1          # Agent toolkit for OpenAI (for vacancy_agent.py)
 
 # ────────────────────────── misc ────────────────────────
 numpy>=1.26                   # numerical operations (used internally by several packages)
