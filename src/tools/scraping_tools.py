@@ -1,4 +1,4 @@
-from openai_agents import tool
+from src.utils.tool_registry import tool
 
 @tool
 def scrape_company_site(url: str) -> dict:
