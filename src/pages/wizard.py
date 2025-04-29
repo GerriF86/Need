@@ -21,7 +21,7 @@ trace = TraceViewer()
 dq    = DynamicQuestionEngine()     # << keep only this one
 
 # ── Guard patterns ───────────────────────────────────────────────────────
-_URL_RE = re.compile(r"^https?://.+", flags=re.I)
+#_URL_RE = re.compile(r"^https?://.+", flags=re.I)
 _MAX_FILE_MB = 10
 _LANGS = ["German", "English", "Bilingual (DE+EN)"]
 _TONES = ["Casual", "Neutral", "Formal", "Enthusiastic"]
@@ -139,7 +139,7 @@ def discovery_page():
 
         # — Dynamic follow-ups —
         if st.session_state.get("competitiveSalaryFlag"):
-            dq_engine.enqueue(
+            dq.enqueue(
                 "salary_range",
                 "You wrote ‘competitive salary’. What salary range (min–max) do you "
                 "have in mind?"
@@ -152,7 +152,7 @@ def discovery_page():
         st.success("Source analysis complete!")
 
     # ── 5 · Pending Dynamic Questions ────────────────────────────────────
-    dq_engine.render_pending_questions()
+    dq.render_pending_questions()
 
     # ── 6 · Trace Viewer (collapsible) ───────────────────────────────────
     with st.expander("Trace Log"):
