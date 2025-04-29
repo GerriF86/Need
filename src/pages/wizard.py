@@ -155,13 +155,6 @@ def start_discovery_page():
     import streamlit as st
     from your_parsers_module import parse_file, fetch_url_text, match_and_store_keys  # Update to your actual module
 
-    # Set App Title + Config (only once at app level ideally, move to app.py if needed)
-    st.set_page_config(
-        page_title="RoleCraft - Create your perfect role",
-        page_icon="🚀",
-        layout="centered"
-    )
-
     # Language toggle (session-level)
     lang = st.radio("🌐 Sprache / Language", ("Deutsch", "English"), horizontal=True)
 
