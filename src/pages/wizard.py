@@ -461,12 +461,12 @@ def run_wizard():
             if missing:
                 st.session_state["step2_static_submitted"] = True
                 st.session_state.trace_events.append(f"Step 2 submitted. Missing: {missing}")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.session_state["step2_static_submitted"] = False
                 st.session_state["wizard_step"] = 3
                 st.session_state.trace_events.append("Step 2 submitted. All fields provided.")
-                st.experimental_rerun()
+                st.rerun()
         # Dynamic question phase for step 2
         if st.session_state.get("step2_static_submitted"):
             # Identify up to 5 missing keys (already computed above if we are here)
@@ -487,7 +487,7 @@ def run_wizard():
                 st.session_state["step2_static_submitted"] = False
                 st.session_state["wizard_step"] = 3
                 st.session_state.trace_events.append("Step 2 dynamic questions answered, continuing to step 3.")
-                st.experimental_rerun()
+                st.rerun()
     elif step == 3:
         with st.form("step3_form"):
             values = render_step3_static()
@@ -506,7 +506,7 @@ def run_wizard():
                 st.session_state["step3_static_submitted"] = False
                 st.session_state["wizard_step"] = 4
                 st.session_state.trace_events.append("Step 3 submitted. All fields provided.")
-                st.experimental_rerun()
+                st.rerun()
         if st.session_state.get("step3_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[3] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
@@ -522,7 +522,7 @@ def run_wizard():
                 st.session_state["step3_static_submitted"] = False
                 st.session_state["wizard_step"] = 4
                 st.session_state.trace_events.append("Step 3 dynamic questions answered, continuing to step 4.")
-                st.experimental_rerun()
+                st.rerun()
     elif step == 4:
         with st.form("step4_form"):
             values = render_step4_static()
@@ -536,12 +536,12 @@ def run_wizard():
             if missing:
                 st.session_state["step4_static_submitted"] = True
                 st.session_state.trace_events.append(f"Step 4 submitted. Missing: {missing}")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.session_state["step4_static_submitted"] = False
                 st.session_state["wizard_step"] = 5
                 st.session_state.trace_events.append("Step 4 submitted. All fields provided.")
-                st.experimental_rerun()
+                st.rerun()
         if st.session_state.get("step4_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[4] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
@@ -554,7 +554,7 @@ def run_wizard():
                 st.session_state["step4_static_submitted"] = False
                 st.session_state["wizard_step"] = 5
                 st.session_state.trace_events.append("Step 4 dynamic questions answered, continuing to step 5.")
-                st.experimental_rerun()
+                st.rerun()
     elif step == 5:
         with st.form("step5_form"):
             values = render_step5_static()
@@ -568,12 +568,12 @@ def run_wizard():
             if missing:
                 st.session_state["step5_static_submitted"] = True
                 st.session_state.trace_events.append(f"Step 5 submitted. Missing: {missing}")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.session_state["step5_static_submitted"] = False
                 st.session_state["wizard_step"] = 6
                 st.session_state.trace_events.append("Step 5 submitted. All fields provided.")
-                st.experimental_rerun()
+                st.rerun()
         if st.session_state.get("step5_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[5] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
@@ -591,7 +591,7 @@ def run_wizard():
                 st.session_state["step5_static_submitted"] = False
                 st.session_state["wizard_step"] = 6
                 st.session_state.trace_events.append("Step 5 dynamic questions answered, continuing to step 6.")
-                st.experimental_rerun()
+                st.rerun()
     elif step == 6:
         with st.form("step6_form"):
             values = render_step6_static()
@@ -605,12 +605,12 @@ def run_wizard():
             if missing:
                 st.session_state["step6_static_submitted"] = True
                 st.session_state.trace_events.append(f"Step 6 submitted. Missing: {missing}")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.session_state["step6_static_submitted"] = False
                 st.session_state["wizard_step"] = 7
                 st.session_state.trace_events.append("Step 6 submitted. All fields provided.")
-                st.experimental_rerun()
+                st.rerun()
         if st.session_state.get("step6_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[6] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
@@ -624,7 +624,7 @@ def run_wizard():
                 st.session_state["step6_static_submitted"] = False
                 st.session_state["wizard_step"] = 7
                 st.session_state.trace_events.append("Step 6 dynamic questions answered, continuing to step 7.")
-                st.experimental_rerun()
+                st.rerun()
     elif step == 7:
         with st.form("step7_form"):
             values = render_step7_static()
@@ -638,12 +638,12 @@ def run_wizard():
             if missing:
                 st.session_state["step7_static_submitted"] = True
                 st.session_state.trace_events.append(f"Step 7 submitted. Missing: {missing}")
-                st.experimental_rerun()
+                st.rerun()
             else:
                 st.session_state["step7_static_submitted"] = False
                 st.session_state["wizard_step"] = 8
                 st.session_state.trace_events.append("Step 7 submitted. All fields provided.")
-                st.experimental_rerun()
+                st.rerun()
         if st.session_state.get("step7_static_submitted"):
             missing_keys = [k for k in STEP_KEYS[7] if not st.session_state[k]]
             st.info("Please provide additional details for the following fields:")
@@ -659,13 +659,13 @@ def run_wizard():
                 st.session_state["step7_static_submitted"] = False
                 st.session_state["wizard_step"] = 8
                 st.session_state.trace_events.append("Step 7 dynamic questions answered, continuing to step 8.")
-                st.experimental_rerun()
+                st.rerun()
     elif step == 8:
         render_step8()
     else:
         # Edge case: reset if out-of-bounds
         st.session_state["wizard_step"] = 1
-        st.experimental_rerun()
+        st.rerun()
 
     # Navigation controls (Back/Next) at bottom, controlling step transitions
     if step > 1:
@@ -674,9 +674,9 @@ def run_wizard():
             if st.session_state.get(f"step{step}_static_submitted"):
                 st.session_state[f"step{step}_static_submitted"] = False
             st.session_state["wizard_step"] -= 1
-            st.experimental_rerun()
+            st.rerun()
     if step < 8 and not st.session_state.get(f"step{step}_static_submitted", False):
         if st.button("Next ➡"):
             # Increment step if no dynamic questions are pending
             st.session_state["wizard_step"] += 1
-            st.experimental_rerun()
+            st.rerun()
